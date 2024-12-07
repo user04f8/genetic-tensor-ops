@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
-import math
 import random
 from gm.genetic_module import GeneticModule, register_module
-from shape_utils import shapes_equal, can_elementwise, can_select_input, can_reduce
+from shape_utils import can_select_input
 
 @register_module('leaf')
 class InputGM(GeneticModule):
@@ -78,10 +77,8 @@ class ConstantGM(GeneticModule):
         return None
 
     def complexity(self):
-        if isinstance(self.value, int):
-            return 0.2
-        else:
-            return 0.5
+        return 0.5
+    
     def __str__(self):
         return f'{self.value:.4f}'
 
@@ -143,46 +140,7 @@ class ScalarParameterGM(ParameterGM):
         return len(output_shape) == 0
 
     def complexity(self):
-        # scalar param less complex than full param
         return 5.0
 
     def __str__(self):
         return f'ScalarParam<{self.init_strategy}>()'
-
-@register_module('unary')
-class IncrementGM(GeneticModule):
-    # Unary op: output = -child_f
-    def __init__(self, input_shapes, output_shape, child_f):
-        super().__init__(input_shapes, output_shape)
-        self.child_f = child_f
-
-    def forward(self, *xs):
-        return self.child_f(*xs) + 1
-
-    def get_submodules(self):
-        return [self.child_f]
-
-    def set_submodule(self, index, new_module):
-        if index == 0:
-            self.child_f = new_module
-
-    def mutate(self, module_factory):
-        if random.random() < 0.5:
-            self.child_f = self.child_f.mutate(module_factory)
-        return self
-
-    @staticmethod
-    def can_build(input_shapes, output_shape):
-        # child must produce output_shape
-        return True
-
-    @staticmethod
-    def infer_output_shape(input_shapes):
-        # same shape as child
-        return None
-
-    def complexity(self):
-        return 1.0 + self.child_f.complexity()
-
-    def __str__(self):
-        return f'({self.child_f}+1)'

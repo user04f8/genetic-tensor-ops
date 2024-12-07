@@ -11,9 +11,8 @@ class Trainer:
 
     def fit(self, train_data, val_data, generations=10, complexity_penalty_factor=0.1):
         for g in range(generations):
+            print(f'Generation {g}:')
             self.population_manager.evolve(train_data, val_data, self.loss_fn, complexity_penalty_factor=complexity_penalty_factor)
-            best, best_loss = self.population_manager.best_candidate(train_data, val_data, self.loss_fn)
-            print(f"Generation {g}: best_loss={best_loss}, best_model={best}")
 
         best, best_loss = self.population_manager.best_candidate(train_data, val_data, self.loss_fn)
         return best, best_loss

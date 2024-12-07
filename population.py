@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor
 from typing import Iterable
 import torch
 import random
@@ -20,20 +21,44 @@ class PopulationManager:
         self.population = [self.module_factory.create_random_module(input_shapes, output_shape) 
                            for _ in range(population_size)]
 
-    def evaluate(self, candidates: Iterable[GeneticModule], train_data, val_data, loss_fn, complexity_penalty_factor):
+    def evaluate_model(self, model, val_Xs, val_Y, loss_fn, device):
+        model.to(device)
+        model.eval()
+        with torch.no_grad():
+            pred = model(*val_Xs)
+            loss = loss_fn(pred, val_Y).item()
+            complexity = model.compute_complexity()
+        return loss, complexity
+
+    def evaluate(
+        self, 
+        candidates: Iterable[GeneticModule], 
+        train_data, 
+        val_data: tuple[tuple[torch.Tensor, ...], torch.Tensor], 
+        loss_fn
+    ) -> tuple[torch.Tensor, torch.Tensor, GeneticModule]:
         val_Xs, val_Y = val_data
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         val_Xs = tuple(x.to(device) for x in val_Xs)
         val_Y = val_Y.to(device)
-        losses = []
-        for c in candidates:
-            c.to(device)
-            c.eval()
-            with torch.no_grad():
-                pred = c(*val_Xs)
-                l = loss_fn(pred, val_Y) + complexity_penalty_factor*c.complexity()
-            losses.append(l.item())
-        return losses
+        
+        with ProcessPoolExecutor() as executor:
+            results = list(executor.map(
+                self.evaluate_model, 
+                [c for c in candidates], 
+                [val_Xs]*len(candidates), 
+                [val_Y]*len(candidates), 
+                [loss_fn]*len(candidates), 
+                [device]*len(candidates)
+            ))
+        
+        losses, complexities = zip(*results)
+        losses_tensor = torch.tensor(losses)
+        complexities_tensor = torch.tensor(complexities)
+        best_idx = torch.argmin(losses_tensor).item()
+        best_model = list(candidates)[best_idx]
+        
+        return losses_tensor, complexities_tensor, best_model
 
     def train_parameters(self, candidate, train_data, loss_fn, lr=0.01, steps=50):
         train_Xs, train_Y = train_data
@@ -70,27 +95,25 @@ class PopulationManager:
                 self.train_parameters(candidate, train_data, loss_fn)
 
         # Evaluate
-        losses = self.evaluate(self.population, train_data, val_data, loss_fn, complexity_penalty_factor)
-        mean_loss = sum(losses)/len(losses)
+        losses, complexities, best_model = self.evaluate(self.population, train_data, val_data, loss_fn)
+        fitness = losses + complexity_penalty_factor*complexities
+
+        print(f'Means: loss={losses.mean()}, complexity={complexities.mean()} \n best<{losses.min()}> = {best_model}')
 
         # Kill-off probability
         # Probability of killing a candidate i: p_kill(i) ~ (loss_i / mean_loss)
         # Then we keep or kill each candidate except elites.
-        ranked = sorted(zip(self.population, losses), key=lambda x: x[1])
+        ranked = sorted(zip(self.population, fitness), key=lambda x: x[1])
         elites_count = max(1, int(self.population_size * elite_frac))
         survivors = [p for p, l in ranked[:elites_count]]
 
         # Decide who else survives
-        for p, l in ranked[elites_count:]:
-            p_kill = l/mean_loss
+        for i, (p, l) in enumerate(ranked[elites_count:]):
+            p_kill = i / self.population_size
             if random.random() > p_kill:
                 survivors.append(p)
 
-        # Refill population if needed
-        while len(survivors) < self.population_size:
-            new_mod = self.module_factory.create_random_module(self.input_shapes, self.output_shape)
-            if new_mod is not None:
-                survivors.append(new_mod)
+        self.population = survivors[:self.population_size]
 
         # Mutate some survivors to maintain diversity
         for i in range(elites_count, len(survivors)):
@@ -104,10 +127,8 @@ class PopulationManager:
             new_mod = self.module_factory.create_random_module(self.input_shapes, self.output_shape)
             if new_mod:
                 survivors.append(new_mod)
-
-        self.population = survivors[:self.population_size]
+    
 
     def best_candidate(self, train_data, val_data, loss_fn):
-        losses = self.evaluate(self.population, train_data, val_data, loss_fn, 0)
-        best_idx = min(range(len(losses)), key=lambda i: losses[i])
-        return self.population[best_idx], losses[best_idx]
+        best_loss, _, best_model = self.evaluate(self.population, train_data, val_data, loss_fn, 0)
+        return best_model, best_loss

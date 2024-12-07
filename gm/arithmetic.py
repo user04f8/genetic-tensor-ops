@@ -9,18 +9,9 @@ class BinaryElementwiseGM(GeneticModule):
     # A base class for elementwise binary ops (Add, Mult)
     # so we don't have to re-implement complexity, mutation strategies
     def __init__(self, input_shapes, output_shape, child_f, child_g):
-        super().__init__(input_shapes, output_shape)
+        super().__init__(input_shapes, output_shape, [child_f, child_g])
         self.child_f = child_f
         self.child_g = child_g
-
-    def get_submodules(self):
-        return [self.child_f, self.child_g]
-
-    def set_submodule(self, index, new_module):
-        if index == 0:
-            self.child_f = new_module
-        else:
-            self.child_g = new_module
 
     def mutate(self, module_factory):
         if random.random() < 0.5:
@@ -55,7 +46,7 @@ class BinaryElementwiseGM(GeneticModule):
 
     def complexity(self):
         # base complexity + children complexity
-        return 5.0 + self.child_f.complexity() + self.child_g.complexity()
+        return 5.0
 
 @register_module('binary')
 class MultGM(BinaryElementwiseGM):
@@ -148,13 +139,49 @@ class SineGM(GeneticModule):
 
     def __str__(self):
         return f'sin({self.child_f})'
+    
+
+@register_module('unary')
+class IncrementGM(GeneticModule):
+    # Unary op: output = -child_f
+    def __init__(self, input_shapes, output_shape, child_f):
+        super().__init__(input_shapes, output_shape, [child_f])
+        self.child_f = child_f
+
+    def forward(self, *xs):
+        return self.child_f(*xs) + 1
+
+    def set_submodule(self, index, new_module):
+        if index == 0:
+            self.child_f = new_module
+
+    def mutate(self, module_factory):
+        if random.random() < 0.5:
+            self.child_f = self.child_f.mutate(module_factory)
+        return self
+
+    @staticmethod
+    def can_build(input_shapes, output_shape):
+        # child must produce output_shape
+        return True
+
+    @staticmethod
+    def infer_output_shape(input_shapes):
+        # same shape as child
+        return None
+
+    def complexity(self):
+        return 1.0
+
+    def __str__(self):
+        return f'({self.child_f}+1)'
 
 @register_module('binary')
 class GreaterThanGM(GeneticModule):
     # Outputs a boolean mask: child_f(*xs) > child_g(*xs)
     # For simplicity, output is float {0,1}.
     def __init__(self, input_shapes, output_shape, child_f, child_g):
-        super().__init__(input_shapes, output_shape)
+        super().__init__(input_shapes, output_shape, [child_f, child_g])
         self.child_f = child_f
         self.child_g = child_g
 
@@ -186,7 +213,7 @@ class GreaterThanGM(GeneticModule):
         return BinaryElementwiseGM.infer_output_shape(input_shapes)
 
     def complexity(self):
-        return 5.0 + self.child_f.complexity() + self.child_g.complexity()
+        return 5.0
 
     def __str__(self):
         return f'({self.child_f}>{self.child_g})'
@@ -195,16 +222,13 @@ class GreaterThanGM(GeneticModule):
 class DotProductGM(GeneticModule):
     # Compute dot product along last dimension if shapes match
     def __init__(self, input_shapes, output_shape, child_f, child_g):
-        super().__init__(input_shapes, output_shape)
+        super().__init__(input_shapes, output_shape, [child_f, child_g])
         self.child_f = child_f
         self.child_g = child_g
 
     def forward(self, *xs):
         # assume shape: [..., D]
         return (self.child_f(*xs) * self.child_g(*xs)).sum(dim=-1)
-
-    def get_submodules(self):
-        return [self.child_f, self.child_g]
 
     def set_submodule(self, index, new_module):
         if index == 0:
@@ -237,7 +261,7 @@ class DotProductGM(GeneticModule):
         return s[:-1]  # remove last dim
 
     def complexity(self):
-        return 5.0 + self.child_f.complexity() + self.child_g.complexity()
+        return 5.0
 
     def __str__(self):
         return f'dot({self.child_f},{self.child_g})'

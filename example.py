@@ -1,27 +1,27 @@
 import torch
 
-# Suppose we have a dataset:
-N, D = 1000, 10
-train_x1 = torch.randn(N, D)
-train_x2 = torch.randn(N, D)
-train_y = 2.0*train_x1 + 0.5*train_x2
+if __name__ == '__main__':
+    N, D = 1000, 10
+    train_x1 = torch.randn(N, D)
+    train_x2 = torch.randn(N, D)
+    train_y = 2.0*train_x1 + 0.5*train_x2
 
-val_x1 = torch.randn(N, D)
-val_x2 = torch.randn(N, D)
-val_y = 2.0*val_x1 + 0.5*val_x2
+    val_x1 = torch.randn(N, D)
+    val_x2 = torch.randn(N, D)
+    val_y = 2.0*val_x1 + 0.5*val_x2
 
-train_data = ((train_x1, train_x2), train_y)
-val_data = ((val_x1, val_x2), val_y)
+    train_data = ((train_x1, train_x2), train_y)
+    val_data = ((val_x1, val_x2), val_y)
 
-input_shapes = [train_x1.shape, train_x2.shape]
-output_shape = train_y.shape
+    input_shapes = [train_x1.shape, train_x2.shape]
+    output_shape = train_y.shape
 
-from trainer import Trainer
+    from trainer import Trainer
 
-trainer = Trainer(input_shapes, output_shape, population_size=20)
-best_model, best_loss = trainer.fit(train_data, val_data, generations=5000, complexity_penalty_factor=0.01)
-print("Best loss:", best_loss)
-print("Best model:", best_model)
+    trainer = Trainer(input_shapes, output_shape, population_size=20)
+    best_model, best_loss = trainer.fit(train_data, val_data, generations=5000, complexity_penalty_factor=0.01)
+    print("Best loss:", best_loss)
+    print("Best model:", best_model)
 
 
 """

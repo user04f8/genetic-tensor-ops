@@ -4,7 +4,7 @@ import random
 import math
 from copy import deepcopy
 
-from genetic_module import GeneticModule
+from gm import GeneticModule
 from module_factory import ModuleFactory
 
 class PopulationManager:

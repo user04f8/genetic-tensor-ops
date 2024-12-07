@@ -4,3 +4,4 @@ from .arithmetic import (
     SineGM, NegateGM, 
 )
 from .aggregator import MaxGM, SumGM
+from .genetic_module import GeneticModuleMeta, GeneticModule

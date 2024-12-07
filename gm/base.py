@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import math
 import random
-from genetic_module import GeneticModule, register_module
+from gm.genetic_module import GeneticModule, register_module
 from shape_utils import shapes_equal, can_elementwise, can_select_input, can_reduce
 
 @register_module('leaf')

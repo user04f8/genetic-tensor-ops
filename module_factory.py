@@ -1,9 +1,8 @@
 import math
 import random
 
-from genetic_module import GeneticModuleMeta
-from modules import (
-    InputGM, ConstantGM, ParameterGM, ScalarParameterGM
+from gm import (
+    GeneticModuleMeta, InputGM, ConstantGM, ParameterGM, ScalarParameterGM
 )
 from shape_utils import can_reduce
 

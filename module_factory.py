@@ -7,14 +7,16 @@ from gm import (
 from shape_utils import can_reduce
 
 class ModuleFactory:
-    def __init__(self, max_depth=5):
+    def __init__(self, max_depth=25):
         self.max_depth = max_depth
         self.leaf_modules = GeneticModuleMeta.registry['leaf']
         self.unary_modules = GeneticModuleMeta.registry['unary']
         self.binary_modules = GeneticModuleMeta.registry['binary']
         self.aggregate_modules = GeneticModuleMeta.registry['aggregate']
-        
+
     def create_random_module(self, input_shapes, output_shape, max_attempts=10, depth=0):
+        # TODO: ensure batch dimension is kept separate
+
         # If we are too deep, fallback to simple solutions
         if depth > self.max_depth:
             return self.fallback_module(input_shapes, output_shape)

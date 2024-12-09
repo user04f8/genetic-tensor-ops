@@ -1,7 +1,7 @@
 import torch
 
 if __name__ == '__main__':
-    N, D = 1000, 10
+    N, D = 5000, 1
     train_x1 = torch.randn(N, D)
     train_x2 = torch.randn(N, D)
     train_y = 2.0*train_x1 + 0.5*train_x2
@@ -18,8 +18,8 @@ if __name__ == '__main__':
 
     from trainer import Trainer
 
-    trainer = Trainer(input_shapes, output_shape, population_size=20)
-    best_model, best_loss = trainer.fit(train_data, val_data, generations=5000, complexity_penalty_factor=0.01)
+    trainer = Trainer(input_shapes, output_shape, population_size=2000)
+    best_model, best_loss = trainer.fit(train_data, val_data, generations=50, complexity_penalty_factor=0.0001)
     print("Best loss:", best_loss)
     print("Best model:", best_model)
 
